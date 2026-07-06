@@ -1,5 +1,5 @@
 {
-  "name": "rdf-writer.ts",
+  "name": "rdf-writer-ts",
   "version": "0.1.0",
   "description": "Fast RDF-JS writer for Turtle, TriG, N-Triples, N-Quads, and RDF Messages for NodeJS.",
   "keywords": [

@@ -21,7 +21,7 @@ This package contains the writer that used to live next to `rdf-parser.ts`. It i
 ## Install
 
 ```sh
-npm install rdf-writer.ts
+npm install rdf-writer-ts
 ```
 
 Node.js 24 or newer is required.
