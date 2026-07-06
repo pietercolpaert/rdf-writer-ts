@@ -1,0 +1,64 @@
+{
+  "name": "rdf-writer.ts",
+  "version": "0.1.0",
+  "description": "Fast RDF-JS writer for Turtle, TriG, N-Triples, N-Quads, and RDF Messages for NodeJS.",
+  "keywords": [
+    "rdf",
+    "rdf-js",
+    "turtle",
+    "trig",
+    "n-triples",
+    "n-quads",
+    "writer"
+  ],
+  "homepage": "https://github.com/pietercolpaert/rdf-writer.ts#readme",
+  "bugs": {
+    "url": "https://github.com/pietercolpaert/rdf-writer.ts/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pietercolpaert/rdf-writer.ts.git"
+  },
+  "license": "MIT",
+  "author": "Pieter Colpaert",
+  "type": "commonjs",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist coverage",
+    "build": "tsup src/index.ts --format cjs,esm --dts --target node24 --platform node --clean --splitting false --out-dir dist",
+    "test": "vitest run --coverage.enabled false",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "check": "npm run lint && npm run build && npm test",
+    "hooks:install": "node scripts/install-hooks.cjs",
+    "prepare": "npm run build && npm run hooks:install"
+  },
+  "dependencies": {
+    "@rdfjs/types": "^2.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.8"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
