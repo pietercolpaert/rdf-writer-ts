@@ -1,10 +1,13 @@
-name: Test
+name: CI
 
 on:
   push:
     branches:
       - main
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -31,5 +34,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run checks
+      - name: Type-check, lint, build, and unit test with coverage
         run: npm run check
+
+      - name: Upload coverage to Coveralls
+        if: ${{ !cancelled() && matrix.node-version == 24 }}
+        uses: coverallsapp/github-action@v2
+        with:
+          file: coverage/lcov.info

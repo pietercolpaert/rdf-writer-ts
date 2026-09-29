@@ -1,8 +1,5 @@
 #!/usr/bin/env sh
 set -eu
 
-echo "Running checks and building distribution files before commit..."
+echo "Running checks before commit..."
 npm run check
-
-echo "Adding generated dist files to the commit..."
-git add -f dist

@@ -1,22 +1,27 @@
-# rdf-writer.ts
+# RDF Writer for TypeScript
 
-Fast RDF-JS writer for Turtle, TriG, N-Triples, N-Quads, RDF 1.2 triple terms, and RDF Message Logs in Node.js.
+[![CI](https://github.com/pietercolpaert/rdf-writer-ts/actions/workflows/test.yml/badge.svg)](https://github.com/pietercolpaert/rdf-writer-ts/actions/workflows/test.yml)
+[![Coverage Status](https://coveralls.io/repos/github/pietercolpaert/rdf-writer-ts/badge.svg?branch=main)](https://coveralls.io/github/pietercolpaert/rdf-writer-ts?branch=main)
+[![npm version](https://img.shields.io/npm/v/rdf-writer-ts.svg)](https://www.npmjs.com/package/rdf-writer-ts)
 
-This package contains the writer that used to live next to `rdf-parser.ts`. It is now published separately so parser and writer users can depend on only the package they need.
+RDF/JS writer for Turtle, TriG, N-Triples, N-Quads, RDF 1.2 triple terms, and RDF Message Logs.
+
+Its sibling package [rdf-parser-ts](https://github.com/pietercolpaert/rdf-parser-ts) parses these formats. The round-trip tests of this package write data, parse it back with `rdf-parser-ts`, and check that the result is the same graph.
+
+## At a glance
+
+| | |
+| --- | --- |
+| Throughput vs. N3.js | 1.3× for TriG, 0.8× for N-Quads |
+| Browser bundle | 8.9 KiB minified, 3.2 KiB gzipped for `Writer`; `StreamWriter` adds readable-stream (125 KiB minified in total) |
+| N3.js writer tests | 4,561 cases replayed, and its other writer tests ported |
+| Round trips | Output parsed back with rdf-parser-ts in all four formats and in RDF Messages |
+| Test coverage | 100% |
+
+Throughput is measured by writing 100,000 generated quads with IRIs, literals of all kinds, blank nodes, named graphs, and triple terms, with prefixes, to an output stream that discards the text (median of five runs, Node.js v25.9.0, Intel Core i7-1265U). Reproduce it with `npm run perf`. Bundle sizes are for an esbuild bundle of `import { Writer } from 'rdf-writer-ts'`.
 
 > [!NOTE]
-> This package follows familiar RDF-JS and N3.js-style APIs while keeping the implementation compact. It would not have been possible without the RDF tooling ecosystem, especially Blake Regalia’s work on Graphy and Ruben Verborgh’s work on N3.js.
-
-## Supported output
-
-- Turtle-style compact output with subject/predicate grouping.
-- TriG graph blocks for named graphs.
-- N-Triples and N-Quads line formats through the `format` option.
-- Prefix declarations, prefixed names, `a` for `rdf:type`, and base IRI shortening in pretty formats.
-- RDF-JS named nodes, blank nodes, literals, variables, default graphs, and quads.
-- Language and direction literals, explicit datatype literals, numeric/boolean abbreviations, escaped IRIs/literals, blank-node property lists, RDF lists, and RDF 1.2 triple terms.
-- RDF Message Logs through `VERSION "...-messages"`, `MESSAGE`, `@version`, and `@message .` delimiters.
-- String output, supplied output streams, and Node.js object-mode transform streams.
+> This package follows familiar RDF/JS and N3.js-style APIs while keeping the implementation compact. It would not have been possible without the RDF tooling ecosystem, especially Blake Regalia’s work on Graphy and Ruben Verborgh’s work on N3.js.
 
 ## Install
 
@@ -24,274 +29,216 @@ This package contains the writer that used to live next to `rdf-parser.ts`. It i
 npm install rdf-writer-ts
 ```
 
-Node.js 22 or newer is required.
+Node.js 22 or newer is required. The writer works on any [RDF/JS](https://rdf.js.org/data-model-spec/) terms, for instance from [rdf-data-factory](https://github.com/rubensworks/rdf-data-factory.js) or from `rdf-parser-ts`.
 
-For local development:
-
-```sh
-npm install
-npm run build
-npm test
-```
-
-## Build and validation scripts
-
-```sh
-npm run build  # Build CommonJS, ESM, and declaration files
-npm run lint   # Type-check with tsc --noEmit
-npm test       # Run unit tests
-npm run check  # Type-check, build, then test
-```
-
-The writer currently ships unit tests for serialization behavior. Unlike the parser package, this repository does not yet ship an official RDF Working Group compliance badge or a dedicated N3.js/Graphy writer benchmark. Parser compliance and parser performance comparisons live in `rdf-parser.ts`.
-
-## Basic usage
+## Usage
 
 ```ts
-import { DataFactory, Writer } from 'rdf-writer.ts';
+import { DataFactory } from 'rdf-data-factory';
+import { Writer } from 'rdf-writer-ts';
 
-const { namedNode, literal, quad } = DataFactory;
-
+const df = new DataFactory();
 const writer = new Writer({ prefixes: { ex: 'https://example.org/' } });
-writer.addQuad(quad(
-  namedNode('https://example.org/s'),
-  namedNode('https://example.org/p'),
-  literal('object'),
+
+writer.addQuad(df.quad(
+	df.namedNode('https://example.org/s'),
+	df.namedNode('https://example.org/p'),
+	df.literal('object'),
 ));
 
 writer.end((error, output) => {
-  if (error) throw error;
-  console.log(output);
-  // @prefix ex: <https://example.org/>.
-  //
-  // ex:s ex:p "object".
+	if (error) throw error;
+	console.log(output);
+	// @prefix ex: <https://example.org/>.
+	//
+	// ex:s ex:p "object".
 });
 ```
 
-`Writer` writes Turtle/TriG-style output by default. Use `format: 'N-Triples'` or `format: 'N-Quads'` for line-based output.
+`Writer` writes Turtle, or TriG when quads have a named graph. Use `format: 'N-Triples'` or `format: 'N-Quads'` for one statement per line:
 
 ```ts
-const writer = new Writer({ format: 'N-Quads' });
-writer.addQuad(quad(
-  namedNode('https://example.org/s'),
-  namedNode('https://example.org/p'),
-  literal('42', namedNode('http://www.w3.org/2001/XMLSchema#integer')),
-  namedNode('https://example.org/g'),
+const lines = new Writer({ format: 'N-Quads' });
+lines.addQuad(df.quad(
+	df.namedNode('https://example.org/s'),
+	df.namedNode('https://example.org/p'),
+	df.literal('42', df.namedNode('http://www.w3.org/2001/XMLSchema#integer')),
+	df.namedNode('https://example.org/g'),
 ));
-
-writer.end((error, output) => {
-  if (error) throw error;
-  console.log(output);
-  // <https://example.org/s> <https://example.org/p> "42"^^<http://www.w3.org/2001/XMLSchema#integer> <https://example.org/g> .
-});
+lines.end((error, output) => console.log(output));
+// <https://example.org/s> <https://example.org/p> "42"^^<http://www.w3.org/2001/XMLSchema#integer> <https://example.org/g> .
 ```
 
-## Writer API
+### What is written
 
-### `new Writer(options)` / `new Writer(outputStream, options)`
+- **Turtle and TriG:**
+  - Statements with the same subject and predicate are grouped with `;` and `,`, and named graphs become graph blocks.
+  - Declared prefixes are used for prefixed names (the first declared prefix that fits, as in N3.js), and `rdf:type` is written as `a`.
+  - With `baseIRI`, other IRIs are shortened to the shortest relative IRI that resolves back to exactly the same IRI, such as `<>`, `<#me>`, `<?q>`, or `<../other>`.
+  - Numbers and booleans are written without quotes when their value is valid for their datatype.
+  - Blank node property lists (`[ … ]`) and RDF lists (`( … )`) can be built with `blank()` and `list()`.
+- **N-Triples and N-Quads:** one statement per line, without prefixes or abbreviations.
+- **Literals:** language tags, RDF 1.2 base directions (`"…"@ar--rtl`), and datatypes.
+- **Escapes:** quotes, backslashes, and control characters, and, as N3.js does, characters outside the Basic Multilingual Plane in IRIs and literals (`\U0001f600`).
+- **RDF 1.2 triple terms** as objects (`<<( s p o )>>`). A triple term as subject, or one with a graph, is reported as an error, since RDF 1.2 does not allow them.
+- **Variables** as `?name`.
+- **RDF Message Logs**, with `VERSION "1.2-messages"` and `MESSAGE` in line formats, or `@version` and `@message .` in Turtle and TriG.
 
-Construct a writer that either collects output into a final string or writes chunks to a supplied stream-like object.
+A term that cannot be written in its position, such as a literal as subject, is reported through the callback of `addQuad()`.
 
-Options:
-
-- `format`: output format hint. N-Triples/N-Quads values enable one-statement-per-line mode; other values use Turtle/TriG-style pretty output.
-- `prefixes`: map from prefix labels to IRI strings or named nodes. Prefixes are emitted in pretty formats and ignored in line formats.
-- `baseIRI`: base IRI used to shorten matching named nodes in pretty formats.
-- `end`: when an output stream is supplied, controls whether `Writer#end()` calls the stream's `end()` method. Defaults to `true`.
-- `lists`: map blank node labels to RDF list contents for pretty-printing list heads.
-- `rdfMessages` / `messages`: force RDF Messages output.
-- `version`: set the RDF version label; messages versions such as `1.2-messages` enable RDF Messages output.
-
-### `quadToString(subject, predicate, object, graph?)`
-
-Serializes a single quad in line syntax and returns the string. This is useful for diagnostics and simple line-format output.
+## API and types
 
 ```ts
-const line = new Writer().quadToString(namedNode('s'), namedNode('p'), namedNode('o'));
-console.log(line); // <s> <p> <o> .
+import type * as RDF from '@rdfjs/types';
+
+class Writer {
+	/** Collects the output and passes it to the end() callback. */
+	constructor(options?: WriterOptions);
+	/** Writes chunks to outputStream as they are produced. */
+	constructor(outputStream: WriterOutputStream, options?: WriterOptions);
+
+	addQuad(quad: RDF.BaseQuad | MessageQuad, done?: WriterCallback): void;
+	addQuad(subject: RDF.Term, predicate: RDF.Term, object: RDF.Term, graph?: RDF.Term, done?: WriterCallback): void;
+	addQuads(quads: Iterable<RDF.BaseQuad | MessageQuad>): void;
+	/** Writes one RDF Message; an empty iterable writes an empty message. */
+	addMessage(message: Iterable<RDF.BaseQuad>, done?: WriterCallback): void;
+	/** Ignored in N-Triples/N-Quads output. */
+	addPrefix(prefix: string, iri: string | RDF.NamedNode, done?: WriterCallback): void;
+	addPrefixes(prefixes: Record<string, string | RDF.NamedNode>, done?: WriterCallback): void;
+
+	/** A blank node property list to use as an object: [], [ p o ], or [ p1 o1; p2 o2 ]. */
+	blank(): RDF.BlankNode;
+	blank(predicate: RDF.Term, object: RDF.Term): RDF.BlankNode;
+	blank(child: WriterBlankChild): RDF.BlankNode;
+	blank(children: WriterBlankChild[]): RDF.BlankNode;
+	/** An RDF list to use as an object: ( o1 o2 ). */
+	list(elements?: RDF.Term[]): RDF.BlankNode;
+
+	/** Serializes in N-Quads syntax without writing. */
+	quadToString(subject: RDF.Term, predicate: RDF.Term, object: RDF.Term, graph?: RDF.Term): string;
+	quadsToString(quads: Iterable<RDF.BaseQuad>): string;
+
+	/** Closes the open statement and the output. */
+	end(done?: WriterEndCallback): void;
+}
+
+/** Node.js-style Transform stream (readable-stream): quads or MessageQuads in, text out. */
+class StreamWriter extends Transform {
+	constructor(options?: WriterOptions);
+	/** Writes the quads of a stream, taking over its 'prefix' events and forwarding its errors. */
+	import(stream: Readable | NodeJS.ReadableStream): this;
+}
+
+interface WriterOptions {
+	/** N-Triples/N-Quads for line output; anything else writes Turtle/TriG */
+	format?: string;
+	prefixes?: Record<string, string | RDF.NamedNode>;
+	/** Shortens IRIs in Turtle/TriG output; no @base is written, so readers need the same base IRI */
+	baseIRI?: string;
+	/** With an output stream: whether end() also ends it (default true) */
+	end?: boolean;
+	/** RDF lists to write in ( … ) syntax, keyed by the label of the blank node heading each list */
+	lists?: Record<string, RDF.Term[]>;
+	rdfMessages?: boolean;
+	messages?: boolean;
+	/** A *-messages label enables RDF Messages and is written in the version directive */
+	version?: string;
+}
+
+interface MessageQuad {
+	quad: RDF.BaseQuad;
+	messageCounter: number;
+}
+interface WriterBlankChild {
+	predicate: RDF.Term;
+	object: RDF.Term;
+}
+interface WriterOutputStream {
+	write: (chunk: string, encoding?: BufferEncoding, callback?: (error?: Error | null) => void) => unknown;
+	end: (callback?: (error?: Error | null, result?: string) => void) => unknown;
+}
+type WriterCallback = (error?: Error | null) => void;
+type WriterEndCallback = (error?: Error | null, output?: string) => void;
 ```
 
-### `quadsToString(quads)`
-
-Serializes an iterable of RDF-JS quads in line syntax and returns one concatenated string.
-
-### `addQuad()` and `addQuads()`
-
-`addQuad()` accepts either a full RDF-JS quad, separated `subject`, `predicate`, `object`, optional `graph` terms, or an RDF Messages entry of the shape `{ quad, messageCounter }`. `addQuads()` iterates over an iterable of quads or message entries.
+### Blank node property lists and lists
 
 ```ts
-writer.addQuad(quad(namedNode('s'), namedNode('p'), namedNode('o')));
-writer.addQuad(namedNode('s'), namedNode('p'), literal('second'));
-writer.addQuads([quad(namedNode('s'), namedNode('p'), namedNode('third'))]);
+const knows = df.namedNode('https://example.org/knows');
+const alice = df.namedNode('https://example.org/alice');
+const me = df.namedNode('https://example.org/me');
+
+writer.addQuad(me, knows, writer.blank(knows, alice));
+writer.addQuad(me, df.namedNode('https://example.org/items'), writer.list([ alice, df.literal('label') ]));
+// ex:me ex:knows [ ex:knows ex:alice ];
+//     ex:items (ex:alice "label").
 ```
 
-### `addPrefix()` and `addPrefixes()`
+### Output streams
 
-Adds prefix declarations in pretty formats. If writing has already started, the current statement is closed before the prefix declaration is emitted.
-
-```ts
-writer.addPrefix('ex', 'https://example.org/');
-writer.addPrefixes({ foaf: 'http://xmlns.com/foaf/0.1/' });
-```
-
-### `blank()` and `list()`
-
-Creates serialized terms for Turtle blank-node property lists and RDF lists.
-
-```ts
-const knows = namedNode('https://example.org/knows');
-const alice = namedNode('https://example.org/alice');
-
-writer.addQuad(namedNode('https://example.org/me'), knows, writer.blank(knows, alice));
-writer.addQuad(namedNode('https://example.org/me'), namedNode('https://example.org/items'), writer.list([alice, literal('label')]));
-```
-
-`blank()` accepts no arguments for `[]`, a single `{ predicate, object }` child, an array of children, or shorthand `blank(predicate, object)`.
-
-### `addMessage()`
-
-Writes one RDF Message from an iterable of quads. Empty iterables preserve empty messages.
-
-```ts
-const writer = new Writer({ prefixes: { ex: 'http://example.org/' }, version: '1.2-messages' });
-
-writer.addMessage([
-  quad(namedNode('http://example.org/s1'), namedNode('http://example.org/p'), namedNode('http://example.org/o1')),
-]);
-writer.addMessage([]);
-writer.addMessage([
-  quad(namedNode('http://example.org/s2'), namedNode('http://example.org/p'), namedNode('http://example.org/o2')),
-]);
-
-writer.end((error, serialized) => {
-  if (error) throw error;
-  console.log(serialized);
-});
-```
-
-### `end(callback)`
-
-Closes any open statement and finalizes the writer. When no output stream is supplied, the callback receives the complete serialized string as its second argument. Writing after `end()` reports an error through the write callback.
-
-## Output streams
-
-Pass a stream-like object with `write()` and `end()` methods when you want chunks as they are produced.
+Pass an object with `write()` and `end()` methods to receive chunks as they are produced:
 
 ```ts
 let output = '';
-const writer = new Writer({
-  write: (chunk, _encoding, callback) => {
-    output += chunk;
-    callback?.(null);
-  },
-  end: callback => callback?.(null),
+const streaming = new Writer({
+	write: (chunk, _encoding, callback) => {
+		output += chunk;
+		callback?.(null);
+	},
+	end: callback => callback?.(null),
 }, { end: false });
-
-writer.addQuad(quad(namedNode('s'), namedNode('p'), namedNode('o')));
-writer.end(error => {
-  if (error) throw error;
-  console.log(output);
-});
 ```
 
 ## StreamWriter
 
-`StreamWriter` is a Node.js `Transform` stream in object mode. It accepts RDF-JS quads or `{ quad, messageCounter }` entries and emits serialized text chunks.
+`StreamWriter` is a Node.js `Transform` stream, built on [readable-stream](https://github.com/nodejs/readable-stream) so it also works when bundled for browsers. It accepts RDF/JS quads or `{ quad, messageCounter }` entries in object mode and emits text. Combined with the `StreamParser` of `rdf-parser-ts`, it converts between formats:
 
 ```ts
-import { Readable } from 'node:stream';
-import { DataFactory, StreamWriter } from 'rdf-writer.ts';
+import { createReadStream } from 'node:fs';
+import { StreamParser } from 'rdf-parser-ts';
+import { StreamWriter } from 'rdf-writer-ts';
 
-const { namedNode, quad } = DataFactory;
-
-Readable.from([
-  quad(namedNode('a'), namedNode('b'), namedNode('c')),
-  quad(namedNode('a'), namedNode('b'), namedNode('d')),
-], { objectMode: true })
-  .pipe(new StreamWriter())
-  .pipe(process.stdout);
+new StreamWriter({ format: 'N-Quads' })
+	.import(createReadStream('data.ttl').pipe(new StreamParser({ format: 'text/turtle' })))
+	.pipe(process.stdout);
 ```
 
-The `import()` convenience method mirrors N3.js and forwards `prefix` events from an input stream:
-
-```ts
-const writer = new StreamWriter({ format: 'N-Quads' });
-writer.import(quadStream).pipe(process.stdout);
-```
+`import()` mirrors N3.js: it also takes over the `prefix` events of the parser, so Turtle output keeps the prefixes of the input.
 
 ## RDF Messages
 
-RDF Messages can be written either by adding message entries directly or by calling `addMessage()`.
+RDF Messages are written either from `{ quad, messageCounter }` entries, as the parsers of `rdf-parser-ts` produce them, or one message at a time with `addMessage()`:
 
 ```ts
-import { DataFactory, Writer, type MessageQuad } from 'rdf-writer.ts';
-
-const { namedNode, quad } = DataFactory;
-const entries: MessageQuad[] = [
-  { quad: quad(namedNode('http://example.org/s1'), namedNode('http://example.org/p'), namedNode('http://example.org/o1')), messageCounter: 0 },
-  { quad: quad(namedNode('http://example.org/s2'), namedNode('http://example.org/p'), namedNode('http://example.org/o2')), messageCounter: 1 },
-];
-
-const writer = new Writer({ format: 'N-Quads' });
-writer.addQuads(entries);
-writer.end((error, serialized) => {
-  if (error) throw error;
-  console.log(serialized);
-});
+const log = new Writer({ format: 'N-Quads' });
+log.addMessage([ df.quad(df.namedNode('https://example.org/s1'), df.namedNode('https://example.org/p'), df.literal('1')) ]);
+log.addMessage([]);
+log.addMessage([ df.quad(df.namedNode('https://example.org/s2'), df.namedNode('https://example.org/p'), df.literal('2')) ]);
+log.end((error, output) => console.log(output));
+// VERSION "1.2-messages"
+// <https://example.org/s1> <https://example.org/p> "1" .
+// MESSAGE
+// MESSAGE
+// <https://example.org/s2> <https://example.org/p> "2" .
 ```
 
-Line formats write `VERSION "1.2-messages"` and `MESSAGE`. Turtle/TriG-style output writes `@version "1.2-messages" .` and `@message .`. Gaps in `messageCounter` values are preserved as empty messages.
+Gaps in `messageCounter` values are written as empty messages.
 
-## RDF-JS data model and helpers
+## Development
 
-The package includes a small RDF-JS-compatible data model so it can be used without another data factory:
-
-```ts
-import { DataFactory } from 'rdf-writer.ts';
-
-const s = DataFactory.namedNode('http://example.org/s');
-const p = DataFactory.namedNode('http://example.org/p');
-const o = DataFactory.literal('hello', 'en');
-const q = DataFactory.quad(s, p, o);
-
-console.log(q.termType);        // Quad
-console.log(q.object.termType); // Literal
-console.log(q.equals(q));       // true
+```sh
+npm run build      # Build CommonJS, ESM, and declaration files
+npm run typecheck  # Type-check with tsc --noEmit
+npm run lint       # Lint with @rubensworks/eslint-config
+npm test           # Run unit tests; fails below 100% coverage
+npm run check      # Type-check, lint, build, then test
+npm run perf       # Benchmark against N3.js
 ```
 
-Public exports include:
+### Test suites
 
-- `Writer`: string/stream writer with `quadToString()`, `quadsToString()`, `addQuad()`, `addQuads()`, `addPrefix()`, `addPrefixes()`, `blank()`, `list()`, `addMessage()`, and `end()`.
-- `StreamWriter`: Node.js object-mode transform stream for quad streams.
-- `DataFactory`: RDF-JS factory for `namedNode()`, `blankNode()`, `literal()`, `variable()`, `defaultGraph()`, and `quad()`.
-- `NamedNode`, `BlankNode`, `Literal`, `Variable`, `DefaultGraph`, `Quad`, and `Message`: lightweight RDF-JS term classes.
-- Factory aliases: `namedNode`, `blankNode`, `literal`, `variable`, `defaultGraph`, and `quad`.
-- `termToString()`: serialize a term for diagnostics and IDs.
-- `quadToString()`: serialize a quad in line syntax.
-- `termToId()`: convert terms to stable string IDs.
-- `isMessageQuad()`: type guard for `{ quad, messageCounter }` entries.
-- `toMessages()`: group message entries into `Message[]`.
-
-## Performance notes
-
-The writer is designed for low overhead on common RDF-JS output paths: it groups Turtle/TriG statements incrementally, writes chunks directly to the target stream when provided, and avoids additional runtime dependencies beyond RDF-JS types.
-
-Dedicated writer benchmarks against N3.js and Graphy are not yet part of this repository. The related parser package currently publishes this quick parsing snapshot against N3.js and Graphy, included here as ecosystem context rather than as writer throughput data:
-
-| Statements | Parser | Time | Throughput | Input | RSS delta |
-| ---: | --- | ---: | ---: | ---: | ---: |
-| 1,000 | rdf-parser.ts | 0.001s | 773,045 q/s | 0.1 MiB | 0.5 MiB |
-| 1,000 | rdf-parser.ts/relax | 0.002s | 525,116 q/s | 0.1 MiB | 0.3 MiB |
-| 1,000 | N3.js | 0.006s | 166,228 q/s | 0.1 MiB | 1.9 MiB |
-| 1,000 | Graphy | 0.003s | 317,648 q/s | 0.1 MiB | 1.9 MiB |
-| 1,000 | Graphy/relax | 0.002s | 594,226 q/s | 0.1 MiB | -1.0 MiB |
-| 10,000 | rdf-parser.ts | 0.010s | 959,069 q/s | 0.9 MiB | 1.4 MiB |
-| 10,000 | rdf-parser.ts/relax | 0.010s | 982,829 q/s | 0.9 MiB | 4.7 MiB |
-| 10,000 | N3.js | 0.026s | 386,462 q/s | 0.9 MiB | 3.3 MiB |
-| 10,000 | Graphy | 0.011s | 881,601 q/s | 0.9 MiB | 7.5 MiB |
-| 10,000 | Graphy/relax | 0.005s | 1,857,713 q/s | 0.9 MiB | 2.4 MiB |
-
-Run the parser benchmark report from the sibling parser repository with `npm run perf`, `npm run perf:quick`, or `npm run perf:graphy`.
+- `test/n3-compat.test.ts` runs the writer tests of [N3.js](https://github.com/rdfjs/N3.js): 49 serialization cases and 4,512 IRI relativization cases replayed from `test/fixtures/n3-writer-cases.json`, and its other writer and stream writer tests, ported. Every relativized IRI is also parsed back with `rdf-parser-ts`. Where this writer deliberately differs from N3.js, the test says why: it rejects triple terms as subjects and triple terms with a graph, which RDF 1.2 does not allow, and it keeps an IRI such as `a:bc` an IRI instead of writing it as a prefixed name. To regenerate the fixture from an N3.js checkout that has been built, run `npm run test:n3-extract -- ../N3.js`.
+- `test/roundtrip.test.ts` writes a dataset with literals of all kinds, blank nodes, triple terms, named graphs, and escapes in all four formats, and in RDF Messages, and parses the output back with `rdf-parser-ts`. It also checks, for a table of IRIs and base IRIs, that every shortened IRI resolves back to the original.
 
 ## License
 

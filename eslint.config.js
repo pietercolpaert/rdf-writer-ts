@@ -1,0 +1,37 @@
+const config = require('@rubensworks/eslint-config');
+
+module.exports = config([
+  {
+    ignores: [ 'dist/**', 'coverage/**', 'perf/**', 'scripts/**', '**/*.md', 'test/fixtures/**' ],
+  },
+  {
+    files: [ '**/*.ts', '**/*.mts' ],
+    languageOptions: {
+      parserOptions: {
+        tsconfigRootDir: __dirname,
+        project: [ './tsconfig.json' ],
+      },
+    },
+  },
+  {
+    rules: {
+      // Checks UTF-16 code units with charCodeAt, where codePointAt has different semantics for surrogate pairs.
+      'unicorn/prefer-code-point': 'off',
+      // Would require renaming the public interfaces (IWriterOptions, ...) and flags the
+      // underscored methods (_transform, _flush) that the stream API requires.
+      'ts/naming-convention': 'off',
+    },
+  },
+  {
+    // Only the tests are Node.js-specific.
+    files: [ 'test/**/*.ts' ],
+    rules: {
+      'import/no-nodejs-modules': 'off',
+    },
+  },
+  {
+    // The tests use vitest, whose API mirrors jest; the jest rules need a version hint.
+    files: [ 'test/**/*.ts' ],
+    settings: { jest: { version: 29 }},
+  },
+]);

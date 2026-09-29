@@ -1,7 +1,18 @@
 {
   "name": "rdf-writer-ts",
-  "version": "0.1.1",
-  "description": "Fast RDF-JS writer for Turtle, TriG, N-Triples, N-Quads, and RDF Messages for NodeJS.",
+  "type": "commonjs",
+  "version": "0.2.0",
+  "description": "Fast RDF/JS writer for Turtle, TriG, N-Triples, N-Quads, RDF 1.2 triple terms, and RDF Messages for Node.js and browsers.",
+  "author": "Pieter Colpaert",
+  "license": "MIT",
+  "homepage": "https://github.com/pietercolpaert/rdf-writer-ts#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pietercolpaert/rdf-writer-ts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pietercolpaert/rdf-writer-ts/issues"
+  },
   "keywords": [
     "rdf",
     "rdf-js",
@@ -11,21 +22,7 @@
     "n-quads",
     "writer"
   ],
-  "homepage": "https://github.com/pietercolpaert/rdf-writer.ts#readme",
-  "bugs": {
-    "url": "https://github.com/pietercolpaert/rdf-writer.ts/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/pietercolpaert/rdf-writer.ts.git"
-  },
-  "license": "MIT",
-  "author": "Pieter Colpaert",
-  "type": "commonjs",
   "sideEffects": false,
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -34,31 +31,47 @@
     },
     "./package.json": "./package.json"
   },
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "files": [
+    "README.md",
     "dist",
-    "src",
-    "README.md"
+    "src"
   ],
-  "scripts": {
-    "clean": "rm -rf dist coverage",
-    "build": "tsup src/index.ts --format cjs,esm --dts --target node24 --platform node --clean --splitting false --out-dir dist",
-    "test": "vitest run --coverage.enabled false",
-    "test:watch": "vitest",
-    "lint": "tsc --noEmit",
-    "check": "npm run lint && npm run build && npm test",
-    "hooks:install": "node scripts/install-hooks.cjs",
-    "prepare": "npm run build && npm run hooks:install"
-  },
-  "dependencies": {
-    "@rdfjs/types": "^2.0.1"
-  },
-  "devDependencies": {
-    "@types/node": "^24.0.0",
-    "tsup": "^8.5.0",
-    "typescript": "^5.8.3",
-    "vitest": "^4.1.8"
-  },
   "engines": {
     "node": ">=22.0.0"
+  },
+  "scripts": {
+    "clean": "rm -rf dist coverage",
+    "build": "tsup src/index.ts --format cjs --dts --target node22 --platform node --clean --out-dir dist && tsup src/index.ts src/Writer.ts src/StreamWriter.ts --format esm --target node22 --platform neutral --splitting --out-dir dist",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . --cache",
+    "check": "npm run typecheck && npm run lint && npm run build && npm test",
+    "hooks:install": "node scripts/install-hooks.cjs",
+    "prepare": "npm run build && npm run hooks:install",
+    "typecheck": "tsc --noEmit",
+    "test:n3-extract": "node scripts/extract-n3-writer-tests.cjs",
+    "perf": "npm run build && node --expose-gc perf/bench.js"
+  },
+  "dependencies": {
+    "@rdfjs/types": "^2.0.1",
+    "readable-stream": "^4.7.0"
+  },
+  "devDependencies": {
+    "@rubensworks/eslint-config": "^3.1.0",
+    "@types/node": "^26.6.3",
+    "@types/readable-stream": "^4.0.25",
+    "@vitest/coverage-v8": "^5.0.2",
+    "esbuild": "^0.28.2",
+    "eslint": "^8.57.1",
+    "n3": "^2.7.12",
+    "rdf-data-factory": "^2.1.0",
+    "rdf-isomorphic": "^2.0.1",
+    "rdf-parser-ts": "^0.4.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.2"
   }
 }
