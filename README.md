@@ -13,12 +13,12 @@ Its sibling package [rdf-parser-ts](https://github.com/pietercolpaert/rdf-parser
 | | |
 | --- | --- |
 | Throughput vs. N3.js | 1.3× for TriG, 0.8× for N-Quads |
-| Browser bundle | 8.9 KiB minified, 3.2 KiB gzipped for `Writer`; `StreamWriter` adds readable-stream (125 KiB minified in total) |
+| Browser bundle | 9.3 KiB minified, 3.4 KiB gzipped, including the Web Streams `StreamWriter` |
 | N3.js writer tests | 4,561 cases replayed, and its other writer tests ported |
 | Round trips | Output parsed back with rdf-parser-ts in all four formats and in RDF Messages |
 | Test coverage | 100% |
 
-Throughput is measured by writing 100,000 generated quads with IRIs, literals of all kinds, blank nodes, named graphs, and triple terms, with prefixes, to an output stream that discards the text (median of five runs, Node.js v25.9.0, Intel Core i7-1265U). Reproduce it with `npm run perf`. Bundle sizes are for an esbuild bundle of `import { Writer } from 'rdf-writer-ts'`.
+Throughput is measured by writing 100,000 generated quads with IRIs, literals of all kinds, blank nodes, named graphs, and triple terms, with prefixes, to an output stream that discards the text (median of five runs, Node.js v25.9.0, Intel Core i7-1265U). Reproduce it with `npm run perf`. Bundle sizes are for an esbuild bundle of `import { Writer, StreamWriter } from 'rdf-writer-ts/browser'`.
 
 > [!NOTE]
 > This package follows familiar RDF/JS and N3.js-style APIs while keeping the implementation compact. It would not have been possible without the RDF tooling ecosystem, especially Blake Regalia’s work on Graphy and Ruben Verborgh’s work on N3.js.
@@ -191,7 +191,7 @@ const streaming = new Writer({
 
 ## StreamWriter
 
-`StreamWriter` is a Node.js `Transform` stream, built on [readable-stream](https://github.com/nodejs/readable-stream) so it also works when bundled for browsers. It accepts RDF/JS quads or `{ quad, messageCounter }` entries in object mode and emits text. Combined with the `StreamParser` of `rdf-parser-ts`, it converts between formats:
+`StreamWriter` is a Node.js `Transform` stream, built on [readable-stream](https://github.com/nodejs/readable-stream). For browsers, see [below](#in-browsers). It accepts RDF/JS quads or `{ quad, messageCounter }` entries in object mode and emits text. Combined with the `StreamParser` of `rdf-parser-ts`, it converts between formats:
 
 ```ts
 import { createReadStream } from 'node:fs';
@@ -204,6 +204,35 @@ new StreamWriter({ format: 'N-Quads' })
 ```
 
 `import()` mirrors N3.js: it also takes over the `prefix` events of the parser, so Turtle output keeps the prefixes of the input.
+
+### In browsers
+
+Import from `rdf-writer-ts/browser` in browser code. It exports the same `Writer`, and a `StreamWriter` built on the Web Streams that browsers provide, so no Node.js stream implementation is bundled. It can be passed to `pipeThrough()`, and combined with the browser `StreamParser` of `rdf-parser-ts`:
+
+```ts
+import { StreamParser } from 'rdf-parser-ts/browser';
+import { StreamWriter } from 'rdf-writer-ts/browser';
+
+const parser = new StreamParser({ format: 'text/turtle' });
+const writer = new StreamWriter({ format: 'N-Quads' });
+parser.on('prefix', (prefix, iri) => writer.addPrefix(prefix, iri));
+
+const response = await fetch('https://example.org/data.ttl');
+const nquads = response.body!.pipeThrough(new TextDecoderStream()).pipeThrough(parser).pipeThrough(writer);
+```
+
+```ts
+class StreamWriter {
+	constructor(options?: WriterOptions);
+	readonly readable: ReadableStream<string>;
+	readonly writable: WritableStream<RDF.BaseQuad | MessageQuad>;
+	/** Pipes a stream of quads through this writer and returns the stream of text. */
+	import(stream: ReadableStream<RDF.BaseQuad | MessageQuad>): ReadableStream<string>;
+	addPrefix(prefix: string, iri: string | RDF.NamedNode): void;
+}
+```
+
+The main entry (`rdf-writer-ts`) also works in bundles that only use `Writer`, but its `StreamWriter` is the Node.js one and brings in readable-stream.
 
 ## RDF Messages
 
