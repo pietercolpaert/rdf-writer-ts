@@ -12,7 +12,6 @@ Its sibling package [rdf-parser-ts](https://github.com/pietercolpaert/rdf-parser
 
 | | |
 | --- | --- |
-| Throughput vs. N3.js | 1.3× for TriG, 0.8× for N-Quads |
 | Browser bundle | 9.3 KiB minified, 3.4 KiB gzipped, including the Web Streams `StreamWriter` |
 | N3.js writer tests | 4,561 cases replayed, and its other writer tests ported |
 | Round trips | Output parsed back with rdf-parser-ts in all four formats and in RDF Messages |
@@ -21,7 +20,7 @@ Its sibling package [rdf-parser-ts](https://github.com/pietercolpaert/rdf-parser
 Throughput is measured by writing 100,000 generated quads with IRIs, literals of all kinds, blank nodes, named graphs, and triple terms, with prefixes, to an output stream that discards the text (median of five runs, Node.js v25.9.0, Intel Core i7-1265U). Reproduce it with `npm run perf`. Bundle sizes are for an esbuild bundle of `import { Writer, StreamWriter } from 'rdf-writer-ts/browser'`.
 
 > [!NOTE]
-> This package follows familiar RDF/JS and N3.js-style APIs while keeping the implementation compact. It would not have been possible without the RDF tooling ecosystem, especially Blake Regalia’s work on Graphy and Ruben Verborgh’s work on N3.js.
+> This package follows familiar RDF/JS and N3.js-style APIs while keeping the implementation compact. It would not have been possible without the RDF tooling ecosystem, especially Blake Regalia’s work on Graphy and Ruben Verborgh’s work on N3.js. The latter is well-maintained and should be used for production systems. 
 
 ## Install
 
